@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A heartbeat under the pillow: fibre specklegram bed sensor</title>
+<meta name="description" content="Interactive summary of a low-cost fibre specklegram sensor that measures heart rate and movement of a person lying in bed without touching them (Journal of Biomedical Optics 22(3), 037001, 2017).">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230e2233'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%23d6302a' opacity='.4'/%3E%3Cpath d='M3 18h7l2-6 3 11 3-14 2 9h9' fill='none' stroke='%23fff' stroke-width='2' stroke-linejoin='round' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preload" href="assets/fonts/archivo-latin-wdth-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<nav class="top" aria-label="Sections">
+  <a class="home" href="#top">Specklegram bed sensor</a>
+  <ul>
+    <li><a href="#speckle">Speckle</a></li>
+    <li><a href="#sensors">Sensors</a></li>
+    <li><a href="#processing">Processing</a></li>
+    <li><a href="#results">Results</a></li>
+    <li><a href="#night">A night’s sleep</a></li>
+    <li><a href="#cite">Cite</a></li>
+  </ul>
+</nav>
+
+<main id="main">
+
+<header class="hero" id="top">
+  <h1>Low-cost fibre specklegram sensor for noncontact continuous patient monitoring</h1>
+  <p class="lead">A plastic optical fibre sewn into a strip of cotton and laid under the pillow. Each heartbeat shakes the head a tiny amount, the fibre bends, and the speckle pattern at its end shifts. A camera and a few lines of signal processing turn that into heart rate and movement, with nothing attached to the patient.</p>
+  <p class="byline">Alberto Rodríguez-Cuevas, Eusebio Real Peña, Luis Rodríguez-Cobo, Matías Lomer and José Miguel López-Higuera</p>
+  <p class="venue"><a href="https://doi.org/10.1117/1.JBO.22.3.037001">Journal of Biomedical Optics 22(3), 037001 (2017)</a> · Open access</p>
+
+  <figure class="monitor panel" id="monitor">
+    <div class="monitor-grid">
+      <div class="cam">
+        <div class="ends"><span>Fibre output</span><span class="clock" id="mon-fps">30 frames/s</span></div>
+        <canvas id="mon-speckle" class="speckle" role="img" aria-label="The speckle pattern at the end of the fibre, changing with every heartbeat."></canvas>
+      </div>
+      <div class="trace">
+        <div class="ends"><span>Change between frames, ΔI<sub>D</sub></span><span class="clock" id="mon-clock">0 s</span></div>
+        <canvas id="mon-trace" class="trace-canvas" role="img" aria-label="Scrolling trace of the frame-to-frame intensity change, with a spike at every heartbeat."></canvas>
+        <div class="vitals">
+          <div class="vital"><span>Heart rate, specklegram</span><b id="mon-bpm">--</b><small>BPM</small></div>
+          <div class="vital"><span>Movement</span><b id="mon-move" class="move-flag">still</b></div>
+          <div class="vital buttons">
+            <button type="button" id="mon-shift">Turn over in bed</button>
+            <button type="button" id="mon-toggle" class="quiet">Pause</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <figcaption>The speckle images are real frames recorded with the sensor; the trace is generated in your browser from a model of the signal, and the heart rate above is computed live from it with the first method of the paper. Press “Turn over in bed” to see the movement detector stop the count until the signal settles.</figcaption>
+  </figure>
+</header>
+
+<section id="why">
+  <h2>Why not just a pulse oximeter?</h2>
+  <p>Round-the-clock monitoring of vital signs is usually reserved for intensive care. On an ordinary ward, nurses check patients a few times a day, and deterioration between rounds can go unnoticed. Continuous monitoring catches it earlier, especially for heart problems, but the usual sensors have to be stuck to the skin: they limit how the patient moves, they are uncomfortable for days on end, and they come off every time the patient has to be moved.</p>
+  <p>Noncontact alternatives exist, from ballistocardiography and capacitive electrocardiograms to thermal cameras and photoplethysmography imaging. Optical fibres add something the others lack: no electronics near the patient, so they work even inside an MRI scanner. Among fibre techniques, the specklegram is the most sensitive for the price. This work asks how to make it a practical bed sensor: which fibre arrangement, where to put it, and how to get a reliable heart rate out of it.</p>
+</section>
+
+<section id="speckle">
+  <h2>From a bent fibre to a number</h2>
+  <p>Coherent light travelling through a multimode fibre takes many paths at once, the modes, each with a slightly different speed. At the far end they interfere and project a grainy pattern of bright and dark spots, the specklegram. A tiny bend of the fibre changes how light is shared among the modes, and the spots rearrange.</p>
+  <p>The sensor does not try to interpret the pattern. It only asks how much it changed from one frame to the next: the sum of the absolute pixel differences between consecutive frames, averaged over the image.</p>
+
+  <div class="eq">
+    <math display="block">
+      <mi mathvariant="normal">Δ</mi><msub><mi>I</mi><mi>D</mi></msub><mo>(</mo><mi>i</mi><mo>)</mo><mo>=</mo>
+      <mfrac><mn>1</mn><mrow><mi>N</mi><mi>M</mi><mi>K</mi></mrow></mfrac>
+      <munderover><mo>∑</mo><mrow><mi>n</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover>
+      <munderover><mo>∑</mo><mrow><mi>m</mi><mo>=</mo><mn>1</mn></mrow><mi>M</mi></munderover>
+      <mo>|</mo><msub><mi>I</mi><mi>i</mi></msub><mo>(</mo><mi>n</mi><mo>,</mo><mi>m</mi><mo>)</mo><mo>−</mo><msub><mi>I</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>(</mo><mi>n</mi><mo>,</mo><mi>m</mi><mo>)</mo><mo>|</mo>
+    </math>
+    <p class="where">N × M is the image size and K the full scale of the camera, 255 for 8-bit images. The total light stays the same, so ΔI<sub>D</sub> measures how much power moved between speckles.</p>
+  </div>
+
+  <div class="frames panel" id="frames">
+    <ol class="frame-strip" id="frame-strip"></ol>
+    <div class="pairs" id="frame-pairs" role="group" aria-label="Pairs of consecutive frames"></div>
+    <p class="note">Five consecutive specklegrams recorded with the bed sensor, and the change between each pair, from Fig.&nbsp;1 of the paper. Select a pair to compare its two frames.</p>
+  </div>
+
+  <p>One number per frame, thirty times a second. When the person is still, ΔI<sub>D</sub> hovers around a baseline and jumps with every heartbeat, as the pulse moves the body against the mattress. When the person moves, it jumps far higher.</p>
+</section>
+
+<section id="sensors">
+  <h2>The sensors</h2>
+  <p>Everything is off-the-shelf: a 638&nbsp;nm semiconductor laser, 2&nbsp;m of plastic optical fibre with a 240&nbsp;µm core, and a CCD camera at 30 frames per second, all controlled by a laptop. The laser and the camera sit in small 3D-printed boxes at the edge of the bed. Cores of 50, 240 and 980&nbsp;µm were tried, and 240&nbsp;µm gave the best sensitivity.</p>
+
+  <div class="build panel" id="photos">
+    <div class="frame photo-frame" id="photo-frame">
+      <img src="assets/media/bed_setup.jpg" alt="Hospital bed in the laboratory. Two red and black boxes, the laser and camera units, sit at the edge of the mattress; a black fabric strip runs across the bed and a small white cotton square lies next to it. A laptop on a bedside cabinet shows the signals and 58 BPM." width="1600" height="1066" class="on">
+      <img src="assets/media/bed_volunteer.jpg" alt="A volunteer lies on his side on the same bed, holding the reference pulse sensor between his fingers, while the laptop shows the specklegram signals and 65 BPM." width="1600" height="1066" loading="lazy">
+      <img src="assets/media/sensors_cad.png" alt="Drawings of the two sensors and the reference: the ring sensor, a box with a loop of fibre; the pulse oximeter, a box with a finger clip; the band sensor, a box with a long straight fibre loop." width="1600" height="384" loading="lazy">
+      <img src="assets/media/positions.png" alt="Drawing of a mattress with the band and ring sensors at the head area and at the coccyx area, and two figures above it: a person lying on the side and a person lying on the back." width="900" height="828" loading="lazy">
+    </div>
+    <ol id="photo-steps">
+      <li><button type="button" aria-pressed="true">The test bed. Under the sheet, the black strip is the band sensor; the white square, the ring sensor. The laptop shows the processed signals live.</button></li>
+      <li><button type="button" aria-pressed="false">A volunteer lying on his side, holding the reference pulse sensor. The fibre never touches him.</button></li>
+      <li><button type="button" aria-pressed="false">The two designs, next to the reference. Both use the same laser, fibre and camera; only the shape of the fibre changes.</button></li>
+      <li><button type="button" aria-pressed="false">The two places tested: under the head, through the pillow, and under the coccyx. Each with the person on the back and on the side.</button></li>
+    </ol>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><b>Band</b><span>fibre in two side seams of a cotton strip, 7&nbsp;cm × 80&nbsp;cm</span></div>
+    <div class="stat"><b>Ring</b><span>fibre wound in 10 loops of 6&nbsp;cm between two cotton pieces</span></div>
+    <div class="stat"><b>638 nm</b><span>semiconductor laser, the only light source</span></div>
+    <div class="stat"><b>30 fps</b><span>CCD camera, one ΔI<sub>D</sub> value per frame</span></div>
+  </div>
+
+  <p>Getting there took trial and error. The fibre was tried bare, on thin wooden boards, on silicone, soft plastics and several textiles, and in ring, helix and straight layouts. Cotton won: it transmits the pressure to the fibre and protects it, and the result is soft enough to go unnoticed under a sheet.</p>
+</section>
+
+<section id="processing">
+  <h2>Three ways to count a heartbeat</h2>
+  <p>All three methods work on the last ten seconds of ΔI<sub>D</sub>, about 300 values, smoothed with a 10-point moving average, and give a new heart rate at every frame. Before any of them runs, a movement detector decides whether the signal can be trusted.</p>
+
+  <div class="lab panel" id="lab">
+    <div class="controls">
+      <fieldset>
+        <legend>Method</legend>
+        <div class="toggle vertical" id="lab-method" role="group" aria-label="Heart rate method">
+          <button type="button" data-k="1" aria-pressed="true"><strong>1 · Peaks</strong><span>smooth, find the beats, median interval</span></button>
+          <button type="button" data-k="2" aria-pressed="false"><strong>2 · FFT</strong><span>derivative, spectrum, highest peak</span></button>
+          <button type="button" data-k="3" aria-pressed="false"><strong>3 · Sinusoids</strong><span>match against 20 to 240 BPM</span></button>
+        </div>
+      </fieldset>
+      <label class="slider"><span>True heart rate</span><output id="lab-hr-out">62 BPM</output><input type="range" id="lab-hr" min="40" max="120" step="1" value="62"></label>
+      <label class="slider"><span>Signal quality</span><output id="lab-q-out">good</output><input type="range" id="lab-q" min="0" max="1" step="0.01" value="0.75"></label>
+      <button type="button" id="lab-move">Make the patient move</button>
+      <p class="hint">Signal quality stands in for what changed between configurations: a band under the head gives clean beats, a sensor under the coccyx picks up breathing and abdominal motion too.</p>
+    </div>
+    <div class="views">
+      <div class="ends"><span>Last 10 s of ΔI<sub>D</sub></span><span class="clock" id="lab-time"></span></div>
+      <canvas id="lab-signal" class="lab-canvas" role="img" aria-label="The last ten seconds of the signal, with the method's intermediate result drawn over it."></canvas>
+      <div class="ends" id="lab-second-head"><span id="lab-second-title">Detected beats</span><span class="clock" id="lab-second-note"></span></div>
+      <canvas id="lab-second" class="lab-canvas short" role="img" aria-label="Intermediate result of the selected method."></canvas>
+      <div class="readouts">
+        <span>Estimated <b id="lab-est">--</b></span>
+        <span>True <b id="lab-true">62 BPM</b></span>
+        <span>Error <b id="lab-err">--</b></span>
+        <span>Movement ratio <b id="lab-ratio">1.00</b></span>
+        <span>Mean computing time in the paper <b id="lab-cost">0.25 ms per frame</b></span>
+      </div>
+      <p class="stage-note" id="lab-note" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <div class="piece top">
+    <div>
+      <h3>Movement detector</h3>
+      <p>The 10&nbsp;s buffer is split in two: the most recent 20&nbsp;% and the older 80&nbsp;%. The detector compares the mean of each. With the patient still, the ratio stays close to 1; when they move, the recent part jumps and the ratio with it. Beyond a threshold, 10&nbsp;% in the paper’s example, the frame is flagged and the heart rate is held until the signal is clean again.</p>
+    </div>
+    <div>
+      <h3>Method 1, peaks</h3>
+      <p>Smooth the signal until each beat is a single hump, find the humps, and take the median time between them, T<sub>m</sub>. The heart rate is 60/T<sub>m</sub>. The median ignores the odd missed or extra peak.</p>
+      <h3>Method 2, FFT</h3>
+      <p>Differentiate to remove the slowly drifting baseline, smooth, and take the Fourier transform. The frequency with the largest amplitude is the heart rate.</p>
+      <h3>Method 3, sinusoids</h3>
+      <p>Compare the signal with stored sinusoids from 0.33&nbsp;Hz (20&nbsp;BPM) to 4&nbsp;Hz (240&nbsp;BPM). The one that matches best gives the heart rate. Robust, but more than a hundred times slower than the others.</p>
+    </div>
+  </div>
+
+  <details>
+    <summary>The same steps on a real recording (Fig. 4 of the paper)</summary>
+    <img class="wide-img" src="assets/media/fig4_methods.png" alt="Four panels: (a) the measured signal with the old and recent windows of the movement detector, (b) the reference pulse oximeter at 60 BPM, (c) method 1 with the smoothed signal and its peaks giving 60 BPM, (d) method 2 spectrum peaking at 60 BPM, (e) method 3 response peaking at 59 BPM." width="1600" height="962" loading="lazy">
+    <p>Ten seconds of a real measurement. The three methods give 60, 60 and 59&nbsp;BPM; the pulse oximeter, 60&nbsp;BPM.</p>
+  </details>
+</section>
+
+<section id="results">
+  <h2>Twenty volunteers, two sensors, four positions</h2>
+  <p>Twenty healthy volunteers lay on the bed after giving informed consent, with the study approved by the University of Cantabria ethics committee. Each did four recordings of 160&nbsp;s with each sensor: under the head and under the coccyx, on the back and on the side. A conventional pulse oximeter held between thumb and index finger gave the reference, and an observer noted every movement.</p>
+
+  <figure class="wide-figure panel">
+    <img src="assets/media/fig5_160s.png" alt="Three stacked plots over 160 seconds: the heart rate from the three methods, the reference at around 60 BPM, and the absolute error, mostly within plus or minus 2 BPM." width="1500" height="1058" loading="lazy">
+    <figcaption>One 160&nbsp;s recording. The first 10&nbsp;s, shaded, are flagged by the movement detector. After that the three methods follow the pulse oximeter within about 2&nbsp;BPM.</figcaption>
+  </figure>
+
+  <div class="chart-panel panel" id="explorer">
+    <div class="chart-head">
+      <h3>Explore every configuration</h3>
+      <div class="explorer-toggles">
+        <div class="toggle" id="ex-sensor" role="group" aria-label="Sensor">
+          <button type="button" data-k="band" aria-pressed="true">Band</button>
+          <button type="button" data-k="ring" aria-pressed="false">Ring</button>
+        </div>
+        <div class="toggle" id="ex-loc" role="group" aria-label="Location">
+          <button type="button" data-k="head" aria-pressed="true">Under the head</button>
+          <button type="button" data-k="coccyx" aria-pressed="false">Under the coccyx</button>
+        </div>
+        <div class="toggle" id="ex-post" role="group" aria-label="Posture">
+          <button type="button" data-k="side" aria-pressed="true">On the side</button>
+          <button type="button" data-k="back" aria-pressed="false">On the back</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-grid two">
+      <figure>
+        <h4 class="panel-title">Mean heart rate per volunteer, BPM</h4>
+        <img id="ex-hr" src="assets/media/panels/hr_band_head_side.png" alt="" width="800" height="491">
+      </figure>
+      <figure>
+        <h4 class="panel-title">Mean absolute error per volunteer, BPM</h4>
+        <img id="ex-mae" src="assets/media/panels/mae_band_head_side.png" alt="" width="800" height="491">
+      </figure>
+    </div>
+    <ul class="legend" id="ex-legend"></ul>
+    <div class="ex-bars">
+      <h4 class="panel-title">Share of the time with more than 10&nbsp;% error</h4>
+      <div class="svgchart" id="ex-bars"></div>
+    </div>
+    <p class="note" id="ex-note"></p>
+  </div>
+
+  <div class="chart-panel panel">
+    <div class="chart-head"><h3>All configurations at once</h3></div>
+    <div class="svgchart" id="heatmap"></div>
+    <p class="note">Share of the time each method was more than 10&nbsp;% away from the reference, Table&nbsp;1 of the paper. Darker is worse. Select a cell to open that configuration above.</p>
+  </div>
+
+  <p>The head wins clearly. The coccyx is closer to the heart and its signal is strong, but it also carries breathing and abdominal motion, which the methods mistake for beats. Under the head that motion is filtered by the body, and the pulsation of the brain itself may help. Lying on the side beats lying on the back, and the band, a straight stretched fibre, generally beats the ring. Among the methods, the simplest is the best: peak detection is the most accurate and the fastest, and the sinusoid match is close behind with the band. The best configuration stays within 10&nbsp;% of the reference more than 97&nbsp;% of the time.</p>
+
+  <p>A practical bonus of the winner: a soft strip under the pillow is out of the way of fluids, scratches and the patient, and nobody has to remember it is there.</p>
+</section>
+
+<section id="night">
+  <h2>A night’s sleep</h2>
+  <p>Short, controlled recordings are one thing; a night in bed is another. The band sensor under the head recorded a volunteer sleeping in real conditions, turning over whenever they liked, for more than six hours.</p>
+
+  <div class="chart-panel panel">
+    <div class="chart-head">
+      <div class="toggle" id="night-toggle" role="group" aria-label="Time scale">
+        <button type="button" data-k="all" aria-pressed="true">The whole night</button>
+        <button type="button" data-k="zoom" aria-pressed="false">Six minutes</button>
+      </div>
+    </div>
+    <div class="night-frame">
+      <img id="night-all" class="on" src="assets/media/fig8_sleep.png" alt="Three stacked plots over 6.6 hours: heart rate from the three methods, the reference, and the movement signal; red bands mark every flagged movement." width="1800" height="747" loading="lazy">
+      <img id="night-zoom" src="assets/media/fig9_zoom.png" alt="The same three plots over six minutes: during three flagged movements the estimates drop and jump, then return to about 55 BPM, matching the reference." width="1600" height="744" loading="lazy">
+    </div>
+    <p class="note" id="night-note">Red bands are the moments the movement detector flagged. Between them, the specklegram estimates stay in the same band as the pulse oximeter, around 55 BPM, all night.</p>
+  </div>
+
+  <div class="stat-row" id="night-stats"></div>
+  <p>Over the whole night the mean error stays below 6&nbsp;BPM, about 10&nbsp;%. The time with more than 10&nbsp;% error rises to about a fifth, largely because of the movements themselves and the changes of position they leave behind. The movements themselves show up clearly in the signal, which is useful information on its own.</p>
+</section>
+
+<section id="related">
+  <div class="related panel">
+    <p>The same speckle, the same group, a different question: can a single fibre tell <i>where</i> along its length it was touched? A neural network learns to answer from the pattern alone.</p>
+    <a id="related-link" href="#">Spatially resolved specklegrams →</a>
+  </div>
+</section>
+
+<section id="cite">
+  <h2>Cite and credits</h2>
+  <p>A. Rodríguez-Cuevas, E. Real Peña, L. Rodríguez-Cobo, M. Lomer and J. M. López-Higuera, “Low-cost fiber specklegram sensor for noncontact continuous patient monitoring”, <i>Journal of Biomedical Optics</i> 22(3), 037001 (2017). <a href="https://doi.org/10.1117/1.JBO.22.3.037001">doi:10.1117/1.JBO.22.3.037001</a></p>
+
+  <pre id="bibtex"><code>@article{RodriguezCuevas2017,
+  author  = {Rodr{\'i}guez-Cuevas, Alberto and Real Pe{\~n}a, Eusebio and
+             Rodr{\'i}guez-Cobo, Luis and Lomer, Mat{\'i}as and
+             L{\'o}pez-Higuera, Jos{\'e} Miguel},
+  title   = {Low-cost fiber specklegram sensor for noncontact
+             continuous patient monitoring},
+  journal = {Journal of Biomedical Optics},
+  volume  = {22},
+  number  = {3},
+  pages   = {037001},
+  year    = {2017},
+  doi     = {10.1117/1.JBO.22.3.037001}
+}</code></pre>
+  <p><button type="button" id="copy-bibtex">Copy BibTeX</button></p>
+
+  <h3>Authors, at the time of the work</h3>
+  <ul class="people">
+    <li><a href="https://orcid.org/0000-0002-4772-9427">Alberto Rodríguez-Cuevas</a><span>Grupo de Ingeniería Fotónica, Universidad de Cantabria, Santander</span></li>
+    <li>Eusebio Real Peña<span>Grupo de Ingeniería Fotónica, Universidad de Cantabria, Santander</span></li>
+    <li>Luis Rodríguez-Cobo<span>Grupo de Ingeniería Fotónica, Universidad de Cantabria; CIBER-BBN</span></li>
+    <li>Matías Lomer<span>Grupo de Ingeniería Fotónica, Universidad de Cantabria; CIBER-BBN</span></li>
+    <li>José Miguel López-Higuera<span>Grupo de Ingeniería Fotónica, Universidad de Cantabria; CIBER-BBN; IDIVAL</span></li>
+  </ul>
+  <p>Supported by the Spanish Ministry of Economy and Competitiveness through projects TEC2013-47264-C2-1-R and TEC2016-76021-C2-2-R.</p>
+</section>
+
+</main>
+
+<footer>
+  <p>This page summarises an open-access article. Photographs, specklegrams and result figures are from the original work; the live traces are generated in the browser from a simple model of the signal and processed with the methods described in the paper.</p>
+</footer>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
